@@ -18,79 +18,39 @@
             margin: 0;
             padding: 10px;
         }
-        h2 {
-            margin: 0;
-            padding: 10px;
-        }
-        #system-info {
-            margin-bottom: 10px;
-            font-size: 12px;
-        }
         video {
             width: 90%;
-            height: 50%;
+            height: auto;
             border: 3px solid #00ff00;
             border-radius: 8px;
-            margin-top: 10px;
-        }
-        .coding-output {
-            background-color: #121212;
-            padding: 5px;
-            border-radius: 5px;
-            width: 100%;
-            text-align: left;
         }
     </style>
 </head>
 <body>
-
     <h2>LIVE STREAM - USER POV</h2>
-    <div id="system-info" class="coding-output"></div>
     <video id="remoteVideo" autoplay playsinline></video>
+    <pre id="system-info">Waiting for system info...</pre>
 
     <script>
         const urlParams = new URLSearchParams(window.location.search);
         const peerId = urlParams.get('peerId');
-
-        const peer = new Peer();  // Create PeerJS instance to connect to the user
+        const peer = new Peer();
 
         peer.on('open', () => {
-            const call = peer.call(peerId, null);  // Initiate the call without local stream
-
-            call.on('stream', (remoteStream) => {
-                const videoElement = document.getElementById('remoteVideo');
-                videoElement.srcObject = remoteStream;
+            const conn = peer.connect(peerId);
+            conn.on('data', (data) => {
+                document.getElementById('system-info').textContent = data;  // Display system info
             });
 
-            call.on('error', (err) => {
-                console.error('Error during call:', err);
+            peer.on('call', (call) => {
+                call.answer();  // Automatically answer the call
+
+                call.on('stream', (remoteStream) => {
+                    const videoElement = document.getElementById('remoteVideo');
+                    videoElement.srcObject = remoteStream;
+                });
             });
         });
-
-        // Display system information
-        function getSystemInfo() {
-            const systemInfo = `
-                Device: ${navigator.userAgent}
-                Platform: ${navigator.platform}
-                Battery Status: ${navigator.getBattery ? 'Checking...' : 'Not Available'}
-            `;
-
-            document.getElementById('system-info').textContent = systemInfo;
-
-            // Check battery if supported
-            if (navigator.getBattery) {
-                navigator.getBattery().then(battery => {
-                    const batteryInfo = `
-                        Battery Level: ${(battery.level * 100).toFixed(0)}%
-                        Charging: ${battery.charging ? 'Yes' : 'No'}
-                    `;
-                    document.getElementById('system-info').textContent += '\n' + batteryInfo;
-                });
-            }
-        }
-
-        getSystemInfo();  // Display system information on page load
     </script>
-
 </body>
 </html>
