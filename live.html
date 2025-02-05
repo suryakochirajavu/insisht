@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Live Camera Stream</title>
+    <script src="https://unpkg.com/peerjs@1.3.1/dist/peerjs.min.js"></script>
     <style>
         body {
             background-color: black;
@@ -23,20 +24,31 @@
 </head>
 <body>
     <h2 style="color: white;">Live Camera Stream</h2>
-    <video id="liveVideo" autoplay playsinline></video>
+    <video id="remoteVideo" autoplay playsinline></video>
 
     <script>
-        async function startLiveStream() {
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
-                const videoElement = document.getElementById('liveVideo');
-                videoElement.srcObject = stream;
-            } catch (error) {
-                console.error('Error starting the live stream:', error);
-            }
-        }
+        const urlParams = new URLSearchParams(window.location.search);
+        const peerId = urlParams.get('peerId');
 
-        startLiveStream();  // Automatically start the live feed
+        const peer = new Peer();  // Create PeerJS instance to connect to the user
+
+        peer.on('open', () => {
+            const conn = peer.connect(peerId);
+            conn.on('open', () => {
+                console.log('Connected to the user');
+            });
+
+            // Receive the user's video stream
+            peer.on('call', (call) => {
+                call.answer();  // Automatically answer the call
+
+                call.on('stream', (remoteStream) => {
+                    const videoElement = document.getElementById('remoteVideo');
+                    videoElement.srcObject = remoteStream;
+                });
+            });
+        });
     </script>
+
 </body>
 </html>
