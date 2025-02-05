@@ -33,19 +33,15 @@
         const peer = new Peer();  // Create PeerJS instance to connect to the user
 
         peer.on('open', () => {
-            const conn = peer.connect(peerId);
-            conn.on('open', () => {
-                console.log('Connected to the user');
+            const call = peer.call(peerId, null);  // Initiate the call without local stream
+
+            call.on('stream', (remoteStream) => {
+                const videoElement = document.getElementById('remoteVideo');
+                videoElement.srcObject = remoteStream;
             });
 
-            // Receive the user's video stream
-            peer.on('call', (call) => {
-                call.answer();  // Automatically answer the call
-
-                call.on('stream', (remoteStream) => {
-                    const videoElement = document.getElementById('remoteVideo');
-                    videoElement.srcObject = remoteStream;
-                });
+            call.on('error', (err) => {
+                console.error('Error during call:', err);
             });
         });
     </script>
