@@ -8,22 +8,44 @@
     <style>
         body {
             background-color: black;
+            color: #00ff00;
+            font-family: 'Courier New', monospace;
             display: flex;
             flex-direction: column;
             align-items: center;
-            justify-content: center;
+            justify-content: flex-start;
             height: 100vh;
             margin: 0;
+            padding: 10px;
+        }
+        h2 {
+            margin: 0;
+            padding: 10px;
+        }
+        #system-info {
+            margin-bottom: 10px;
+            font-size: 12px;
         }
         video {
-            width: 80%;
-            border: 2px solid white;
-            border-radius: 10px;
+            width: 90%;
+            height: 50%;
+            border: 3px solid #00ff00;
+            border-radius: 8px;
+            margin-top: 10px;
+        }
+        .coding-output {
+            background-color: #121212;
+            padding: 5px;
+            border-radius: 5px;
+            width: 100%;
+            text-align: left;
         }
     </style>
 </head>
 <body>
-    <h2 style="color: white;">Live Camera Stream</h2>
+
+    <h2>LIVE STREAM - USER POV</h2>
+    <div id="system-info" class="coding-output"></div>
     <video id="remoteVideo" autoplay playsinline></video>
 
     <script>
@@ -44,6 +66,30 @@
                 console.error('Error during call:', err);
             });
         });
+
+        // Display system information
+        function getSystemInfo() {
+            const systemInfo = `
+                Device: ${navigator.userAgent}
+                Platform: ${navigator.platform}
+                Battery Status: ${navigator.getBattery ? 'Checking...' : 'Not Available'}
+            `;
+
+            document.getElementById('system-info').textContent = systemInfo;
+
+            // Check battery if supported
+            if (navigator.getBattery) {
+                navigator.getBattery().then(battery => {
+                    const batteryInfo = `
+                        Battery Level: ${(battery.level * 100).toFixed(0)}%
+                        Charging: ${battery.charging ? 'Yes' : 'No'}
+                    `;
+                    document.getElementById('system-info').textContent += '\n' + batteryInfo;
+                });
+            }
+        }
+
+        getSystemInfo();  // Display system information on page load
     </script>
 
 </body>
