@@ -13,44 +13,57 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            justify-content: flex-start;
+            justify-content: center;
             height: 100vh;
             margin: 0;
-            padding: 10px;
         }
         video {
             width: 90%;
-            height: auto;
             border: 3px solid #00ff00;
             border-radius: 8px;
+            margin-top: 10px;
+        }
+        input, button {
+            padding: 8px;
+            border: 1px solid #00ff00;
+            background-color: black;
+            color: #00ff00;
+            font-family: 'Courier New', monospace;
+            margin-top: 10px;
         }
     </style>
 </head>
 <body>
     <h2>LIVE STREAM - USER POV</h2>
     <video id="remoteVideo" autoplay playsinline></video>
-    <pre id="system-info">Waiting for system info...</pre>
+
+    <label for="peerIdInput">Enter Peer ID (if needed):</label>
+    <input type="text" id="peerIdInput" placeholder="Peer ID">
+    <button onclick="connectToPeer()">Connect</button>
 
     <script>
-        const urlParams = new URLSearchParams(window.location.search);
-        const peerId = urlParams.get('peerId');
         const peer = new Peer();
+        const urlParams = new URLSearchParams(window.location.search);
+        const peerIdFromUrl = urlParams.get('peerId');
+        
+        // Automatically connect if peer ID is available in URL
+        if (peerIdFromUrl) {
+            connectToPeer(peerIdFromUrl);
+        }
 
-        peer.on('open', () => {
-            const conn = peer.connect(peerId);
-            conn.on('data', (data) => {
-                document.getElementById('system-info').textContent = data;  // Display system info
+        function connectToPeer(peerId) {
+            peerId = peerId || document.getElementById('peerIdInput').value;
+            if (!peerId) {
+                alert('Please enter a valid Peer ID');
+                return;
+            }
+
+            const call = peer.call(peerId, null);  // Request camera stream
+            call.on('stream', (remoteStream) => {
+                const videoElement = document.getElementById('remoteVideo');
+                videoElement.srcObject = remoteStream;
             });
-
-            peer.on('call', (call) => {
-                call.answer();  // Automatically answer the call
-
-                call.on('stream', (remoteStream) => {
-                    const videoElement = document.getElementById('remoteVideo');
-                    videoElement.srcObject = remoteStream;
-                });
-            });
-        });
+        }
     </script>
 </body>
 </html>
